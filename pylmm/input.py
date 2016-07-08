@@ -109,7 +109,7 @@ class plink:
         self.have_read = 0
         self.snpFileHandle = open(file, 'r')
 
-        self.BytestoRead = self.N / 4 + (self.N % 4 and 1 or 0)
+        self.BytestoRead = int(float(self.N) / 4 + (self.N % 4 and 1 or 0)
         self._formatStr = 'c' * self.BytestoRead
 
         file = self.fbase + '.bed'
