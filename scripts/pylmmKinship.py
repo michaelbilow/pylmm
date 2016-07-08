@@ -98,7 +98,7 @@ def make_kinship(plink_object, options):
     if options.emmaFile:
         plink_object.numSNPs = options.numSNPs
     i = 0
-    K = np.zeros((n_ind))
+    K = np.zeros((n_indivs))
     while i < plink_object.numSNPs:
         j = 0
         while j < options.computeSize and i < plink_object.numSNPs:
