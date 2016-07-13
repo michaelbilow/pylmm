@@ -1,4 +1,5 @@
 from pylmm.input import plink
+from pylmm.lmm import LMM
 from os.path import join, split, splitext
 import numpy as np
 import sys
@@ -10,11 +11,15 @@ import sys
 def test1(plink_object):
     ## Ensure the number of individals == the number of lines in the fam file
     counter = 0
-    with open('../data/snps.132k.clean.nox.fam', 'r') as opfile:
+    if plink_object.type == 'b':
+        fam_file = plink_object.fbase + '.fam'
+    elif plink_object.type == 't':
+        fam_file = plink_object.fbase + '.tfam'
+    with open(fam_file, 'r') as opfile:
         for line in opfile:
             counter += 1
     assert counter == len(plink_object.indivs), \
-        "getIndivs failure: counted {} lines, got  {} indivs".format(counter, plink_object.indivs)
+        "getIndivs failure: counted {} lines, got  {} indivs".format(counter, len(plink_object.indivs))
     return
 
 def test2(plink_object):
@@ -38,9 +43,11 @@ def test4(plink_object):
             indiv_index += 1
     return
 
-def test5(plink_object, tped_file):
+def test5(plink_object):
     ## Check SNPs in plink object are the same as those in the base file
-    with open(tped_file, 'r') as f:
+    if plink_object.type != 't':
+        return
+    with open(plink_object.fbase + '.tped', 'r') as f:
         for snp, id in plink_object:
             line = f.readline().strip().split()[4:]
             line_pairs = zip(line[::2], line[1::2])
@@ -67,19 +74,30 @@ def test6(plink_object):
             line_index += 1
     return
 
-def run_all_tests(plink_object, tped_file):
+def run_all_tests(plink_object):
     test1(plink_object)
     test2(plink_object)
     test3(plink_object)
     test4(plink_object)
-    test5(plink_object, tped_file)
+    test5(plink_object)
     test6(plink_object)
     return
 
 if __name__ == "__main__":
     input_folder = '../data/'
-    base_name = 'finland_short{}'
-    my_plink_object = plink(fbase=join(input_folder, base_name.format('')), kFile=join(input_folder, base_name.format('.pylmm.kin')),
-                            phenoFile=None, type='t', normGenotype=False,
-                            readKFile=False,fastLMM_kinship=False) ## FIX ME
-    run_all_tests(my_plink_object, join(input_folder, base_name.format('.tped')))
+    mouse_data = True
+    if mouse_data:
+        base_name = 'snps.132k.clean.noX{}'
+        my_plink_object = plink(fbase=join(input_folder, base_name.format('')),
+                                kFile=join(input_folder, base_name.format('.pylmm.kin')),
+                                phenoFile=join(input_folder, base_name.format('.fake.phenos')), type='b',
+                                normGenotype=True, readKFile=False, fastLMM_kinship=False)
+    else:
+    ### for finland human data, need pheno file though
+        base_name = 'finland_short{}'
+        my_plink_object = plink(fbase=join(input_folder, base_name.format('')),
+                                kFile=join(input_folder, base_name.format('.pylmm.kin')),
+                                phenoFile=None, type='t', normGenotype=False, readKFile=False,fastLMM_kinship=False)
+
+    run_all_tests(my_plink_object)
+    lmm_object = LMM(my_plink_object.phenos, my_plink_object.K, verbose=True)
