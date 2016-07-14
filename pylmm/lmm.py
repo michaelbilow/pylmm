@@ -176,18 +176,17 @@ class LMM:
       For simplicity, we assume that everything being input is a numpy array.
       If this is not the case, the module may throw an error as conversion
       from list to numpy array is not done consistently.
-
-   """
+    """
 
     def __init__(self, Y, K, Kva=[], Kve=[], X0=None, verbose=False):
 
         """
-      The constructor takes a phenotype vector or array of size n.
-      It takes a kinship matrix of size n x n.  Kva and Kve can be computed as Kva,Kve = linalg.eigh(K) and cached.
-      If they are not provided, the constructor will calculate them.
-      X0 is an optional covariate matrix of size n x q, where there are q covariates.
-      When this parameter is not provided, the constructor will set X0 to an n x 1 matrix of all ones to represent a mean effect.
-      """
+        The constructor takes a phenotype vector or array of size n.
+        It takes a kinship matrix of size n x n.  Kva and Kve can be computed as Kva,Kve = linalg.eigh(K) and cached.
+        If they are not provided, the constructor will calculate them.
+        X0 is an optional covariate matrix of size n x q, where there are q covariates.
+        When this parameter is not provided, the constructor will set X0 to an n x 1 matrix of all ones to represent a mean effect.
+        """
 
         if X0 == None:
             X0 = np.ones(len(Y)).reshape(len(Y), 1)
@@ -226,12 +225,11 @@ class LMM:
         self.transform()
 
     def transform(self):
-
         """
          Computes a transformation on the phenotype vector and the covariate matrix.
          The transformation is obtained by left multiplying each parameter by the transpose of the 
          eigenvector matrix of K (the kinship).
-      """
+        """
 
         self.Yt = matrixMult(self.Kve.T, self.Y)
         self.X0t = matrixMult(self.Kve.T, self.X0)
@@ -246,7 +244,7 @@ class LMM:
          be utilized in other functions. The input parameter h is a value between 0 and 1 and represents
          the heritability or the proportion of the total variance attributed to genetics.  The X is the 
          covariate matrix.
-      """
+        """
 
         S = 1.0 / (h * self.Kva + (1.0 - h))
         Xt = X.T * S
