@@ -4,12 +4,8 @@ from os.path import join, split, splitext
 import numpy as np
 import sys
 
-
-
-
-
 def test1(plink_object):
-    ## Ensure the number of individals == the number of lines in the fam file
+    ## Ensure the number of individuals == the number of lines in the FAM file
     counter = 0
     if plink_object.type == 'b':
         fam_file = plink_object.fbase + '.fam'
@@ -25,12 +21,12 @@ def test1(plink_object):
 def test2(plink_object):
     ## Ensure the number of individuals == the number of phenotypes read in
     assert len(plink_object.phenos) == len(plink_object.indivs), \
-        "Number of phentotypes {} does not equal number of individuals read {}".format(plink_object.phenos, plink_object.indivs)
+        "Number of phenotypes {} does not equal number of individuals read {}".format(plink_object.phenos, plink_object.indivs)
     return
 
 def test3(plink_object):
     ## Check that a kinship file has been read
-    assert plink_object.kFile is not None, ("Please specify a kinship matrix")
+    assert plink_object.kFile is not None, "Please specify a kinship matrix"
     return
 
 def test4(plink_object):
