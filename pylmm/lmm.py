@@ -178,30 +178,34 @@ class LMM:
       from list to numpy array is not done consistently.
     """
 
-    def __init__(self, Y, K, Kva=[], Kve=[], X0=None, verbose=False):
+    def __init__(self, Y, K, Kva=None, Kve=None, X0=None, verbose=False):
 
         """
-        The constructor takes a phenotype vector or array of size n.
-        It takes a kinship matrix of size n x n.  Kva and Kve can be computed as Kva,Kve = linalg.eigh(K) and cached.
+        The constructor takes a phenotype vector or array of size N.
+        It takes a kinship matrix of size N x N.
+        Eigenvalues (Kva) and Eigenvectors (Kve) can be computed using scipy.linalg:
+            Kva, Kve = linalg.eigh(K)
         If they are not provided, the constructor will calculate them.
-        X0 is an optional covariate matrix of size n x q, where there are q covariates.
-        When this parameter is not provided, the constructor will set X0 to an n x 1 matrix of all ones to represent a mean effect.
+        X0 is an optional covariate matrix of size N x q, where there are q covariates.
+        When this parameter is not provided, the constructor
+        will set X0 to an n x 1 matrix of all ones to represent a mean effect.
         """
 
-        if X0 == None:
+        if X0 is None:
             X0 = np.ones(len(Y)).reshape(len(Y), 1)
         self.verbose = verbose
 
-        x = True - np.isnan(Y)
-        x = x.reshape(-1, )
-        if not x.sum() == len(Y):
-            if self.verbose: sys.stderr.write("Removing %d missing values from Y\n" % ((True - x).sum()))
-            Y = Y[x]
-            K = K[x, :][:, x]
-            X0 = X0[x, :]
+        has_pheno_mask = True - np.isnan(Y)
+        if not has_pheno_mask.all():
+            n_missing = (~has_pheno_mask).sum()
+            if self.verbose:
+                sys.stderr.write("Removing {} missing values from Y\n".format(n_missing))
+            Y = Y[has_pheno_mask]
+            K = K[has_pheno_mask, :][:, has_pheno_mask]
+            X0 = X0[has_pheno_mask, :]
             Kva = []
             Kve = []
-        self.nonmissing = x
+        self.nonmissing = has_pheno_mask
 
         if len(Kva) == 0 or len(Kve) == 0:
             if self.verbose: sys.stderr.write(
