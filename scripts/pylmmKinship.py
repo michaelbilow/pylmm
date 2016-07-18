@@ -24,39 +24,7 @@ import numpy as np
 from scipy import linalg
 from pylmm.lmm import calculateKinship
 from pylmm import input
-from optparse import OptionParser, OptionGroup
-
-def setup_option_parser():
-    usage = """usage: %prog [options] --[tfile | bfile] plinkFileBase outfile
-
-    """
-    parser = OptionParser(usage=usage)
-
-    basicGroup = OptionGroup(parser, "Basic Options")
-    # advancedGroup = OptionGroup(parser, "Advanced Options")
-
-    # basicGroup.add_option("--pfile", dest="pfile",
-    #                  help="The base for a PLINK ped file")
-    basicGroup.add_option("--tfile", dest="tfile",
-                          help="The base for a PLINK tped file")
-    basicGroup.add_option("--bfile", dest="bfile",
-                          help="The base for a PLINK binary ped file")
-    basicGroup.add_option("--emmaSNP", dest="emmaFile", default=None,
-                          help="For backwards compatibility with emma, we allow for \"EMMA\" file formats.  This is just a text file with individuals on the rows and snps on the columns.")
-    basicGroup.add_option("--emmaNumSNPs", dest="numSNPs", type="int", default=0,
-                          help="When providing the emmaSNP file you need to specify how many snps are in the file")
-
-    basicGroup.add_option("-e", "--efile", dest="saveEig", help="Save eigendecomposition to this file.")
-    basicGroup.add_option("-n", default=1000, dest="computeSize", type="int",
-                          help="The maximum number of SNPs to read into memory at once (default 1000).  This is important when there is a large number of SNPs, because memory could be an issue.")
-
-    basicGroup.add_option("-v", "--verbose",
-                          action="store_true", dest="verbose", default=False,
-                          help="Print extra info")
-
-    parser.add_option_group(basicGroup)
-    # parser.add_option_group(advancedGroup)
-    return parser
+from cl_parsers import kinship_cl_parser
 
 
 def parse_command_line(parser):
@@ -144,6 +112,6 @@ def write_kinship(K, output_fn, options):
         np.savetxt(output_fn + ".kve", Kve)
 
 if __name__ == "__main__":
-    option_parser = setup_option_parser()
+    option_parser = kinship_cl_parser()
     plink_obj, output_fn, parsed_options = parse_command_line(parser=option_parser)
     make_kinship(plink_object=plink_obj, options=parsed_options)
