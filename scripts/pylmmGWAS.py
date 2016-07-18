@@ -20,68 +20,80 @@ import pdb
 import time
 import sys
 from optparse import OptionParser, OptionGroup
-import os
 import numpy as np
 from scipy import linalg
 from pylmm.lmm import LMM
 from pylmm import input
+from os import listdir
+from os.path import join, split, splitext, exists, isfile
 
-def printOutHead(): out.write("\t".join(["SNP_ID", "BETA", "BETA_SD", "F_STAT", "P_VALUE"]) + "\n")
+def printOutHead():
+    out.write("\t".join(["SNP_ID", "BETA", "BETA_SD", "F_STAT", "P_VALUE"]) + "\n")
 
 
 def outputResult(id, beta, betaSD, ts, ps):
     out.write("\t".join([str(x) for x in [id, beta, betaSD, ts, ps]]) + "\n")
 
+
 def parse_command_line(parser):
-    pass
+    options, args = parser.parse_args()
+    if len(args) != 1:
+        parser.print_help()
+        sys.exit()
 
-(options, args) = parser.parse_args()
-if len(args) != 1:
-    parser.print_help()
-    sys.exit()
+    output_fn = args[0]
 
-output_fn = args[0]
+    if not options.tfile and not options.bfile and not options.emmaFile:
+        # if not options.pfile and not options.tfile and not options.bfile:
+        parser.error("You must provide at least one PLINK input file base "
+                     "(--tfile or --bfile) or an EMMA formatted file (--emmaSNP).")
+    if not options.kfile:
+        parser.error("Please provide a pre-computed kinship file")
 
-if not options.tfile and not options.bfile and not options.emmaFile:
-    # if not options.pfile and not options.tfile and not options.bfile:
-    parser.error(
-        "You must provide at least one PLINK input file base (--tfile or --bfile) or an EMMA formatted file (--emmaSNP).")
-if not options.kfile:
-    parser.error("Please provide a pre-computed kinship file")
+    # READING PLINK input
+    if options.verbose:
+        sys.stderr.write("Reading SNP input...\n")
+    if options.bfile:
+        plink_object = input.plink(options.bfile, type='b',
+                                   phenoFile=options.phenoFile,
+                                   normGenotype=options.normalizeGenotype)
+    elif options.tfile:
+        plink_object = input.plink(options.tfile, type='t',
+                                   phenoFile=options.phenoFile,
+                                   normGenotype=options.normalizeGenotype)
+    elif options.emmaFile:
+        plink_object = input.plink(options.emmaFile,
+                                   type='emma',
+                                   phenoFile=options.phenoFile,
+                                   normGenotype=options.normalizeGenotype)
+    else:
+        parser.error("You must provide at least one PLINK input file base")
+    return options, args, plink_object
 
-# READING PLINK input
-if options.verbose: sys.stderr.write("Reading SNP input...\n")
-if options.bfile:
-    IN = input.plink(options.bfile, type='b', phenoFile=options.phenoFile, normGenotype=options.normalizeGenotype)
-elif options.tfile:
-    IN = input.plink(options.tfile, type='t', phenoFile=options.phenoFile, normGenotype=options.normalizeGenotype)
-# elif options.pfile: IN = input.plink(options.pfile,type='p', phenoFile=options.phenoFile,normGenotype=options.normalizeGenotype)
-elif options.emmaFile:
-    IN = input.plink(options.emmaFile, type='emma', phenoFile=options.phenoFile, normGenotype=options.normalizeGenotype)
-else:
-    parser.error("You must provide at least one PLINK input file base")
 
-if not os.path.isfile(options.phenoFile or IN.fbase + '.phenos') and not os.path.isfile(options.emmaPheno):
-    parser.error(
-        "No .pheno file exist for %s.  Please provide a phenotype file using the --phenofile or --emmaPHENO argument." % (
-        options.phenoFile or IN.fbase + '.phenos'))
+def read_phenotypes(parser, plink_object):
+    options, args = parser.parse_args()
+    if not isfile(options.phenoFile) and not isfile(options.emmaPheno):
+        parser.error("Please provide a phenotype file using the --phenofile or --emmaPHENO argument.")
 
-# Read the emma phenotype file if provided.
-# Format should be rows are phenotypes and columns are individuals.
-if options.emmaPheno:
-    f = open(options.emmaPheno, 'r')
-    P = []
-    for line in f:
-        v = line.strip().split()
-        p = []
-        for x in v:
-            try:
-                p.append(float(x))
-            except:
-                p.append(np.nan)
-        P.append(p)
-    f.close()
-    IN.phenos = np.array(P).T
+    # Read the emma phenotype file if provided.
+    # Format should be rows are phenotypes and columns are individuals.
+    if options.emmaPheno:
+        with open()
+        emma_phenofile = open(options.emmaPheno, 'r')
+        P = []
+        for line in emma_phenofile:
+            v = line.strip().split()
+            p = []
+            for x in v:
+                try:
+                    p.append(float(x))
+                except ValueError:
+                    p.append(np.nan)
+            P.append(p)
+        emma_phenofile.close()
+        plink_object.phenos = np.array(P).T
+    return
 
 # READING Covariate File
 if options.covfile:
