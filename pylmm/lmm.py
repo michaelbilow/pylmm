@@ -207,7 +207,7 @@ class LMM:
             Kve = []
         self.nonmissing = has_pheno_mask
 
-        if len(Kva) == 0 or len(Kve) == 0:
+        if Kva is None or Kve is None:
             if self.verbose: sys.stderr.write(
                 "Obtaining eigendecomposition for %dx%d matrix\n" % (K.shape[0], K.shape[1]))
             begin = time.time()
