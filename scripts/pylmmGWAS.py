@@ -79,19 +79,17 @@ def read_phenotypes(parser, plink_object):
     # Read the emma phenotype file if provided.
     # Format should be rows are phenotypes and columns are individuals.
     if options.emmaPheno:
-        with open()
-        emma_phenofile = open(options.emmaPheno, 'r')
-        P = []
-        for line in emma_phenofile:
-            v = line.strip().split()
-            p = []
-            for x in v:
-                try:
-                    p.append(float(x))
-                except ValueError:
-                    p.append(np.nan)
-            P.append(p)
-        emma_phenofile.close()
+        with open(options.emmaPheno, 'r') as emma_phenofile:
+            P = []
+            for line in emma_phenofile:
+                v = line.strip().split()
+                p = []
+                for x in v:
+                    try:
+                        p.append(float(x))
+                    except ValueError:
+                        p.append(np.nan)
+                P.append(p)
         plink_object.phenos = np.array(P).T
     return
 
