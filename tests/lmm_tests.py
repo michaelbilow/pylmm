@@ -15,6 +15,7 @@ def lmm_test1(lmm_object, plink_object):
     for i in range(kin.shape[0]):
         for j in range(kin.shape[1]):
             assert lmm_object.K[i][j] == kin[i][j], "Kinship file not read properly"
+    assert np.isclose(lmm_object.Kva, linalg.eigh(kin)[0], atol=1e-05).all() and np.isclose(lmm_object.Kve, linalg.eigh(kin)[1], atol=1e-05).all()
     return
 
 
