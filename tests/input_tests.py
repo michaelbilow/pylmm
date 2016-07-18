@@ -20,6 +20,7 @@ def test1(plink_object):
 
 def test2(plink_object):
     ## Ensure the number of individuals == the number of phenotypes read in
+    assert plink_object.phenos is not None, "Please specify a phenotype file."
     assert len(plink_object.phenos) == len(plink_object.indivs), \
         "Number of phenotypes {} does not equal number of individuals read {}".format(plink_object.phenos, plink_object.indivs)
     return
@@ -81,7 +82,7 @@ def run_all_tests(plink_object):
 
 if __name__ == "__main__":
     input_folder = '../data/'
-    mouse_data = True
+    mouse_data = False
     if mouse_data:
         base_name = 'snps.132k.clean.noX{}'
         my_plink_object = plink(fbase=join(input_folder, base_name.format('')),
