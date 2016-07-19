@@ -52,7 +52,8 @@ def parse_command_line(parser):
         plink_object = input.plink(options.emmaFile, type='emma')
     else:
         parser.error(
-            "You must provide at least one PLINK input file base (--tfile or --bfile) or an emma formatted file (--emmaSNP).")
+            "You must provide at least one PLINK input file base "
+            "(--tfile or --bfile) or an emma formatted file (--emmaSNP).")
 
     return plink_object, output_fn, options
 
