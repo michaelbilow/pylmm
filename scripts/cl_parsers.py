@@ -147,7 +147,9 @@ def GWAS_parser():
     if not options.bfile and not options.tfile and not options.emmaFile:
         parser.error("You must provide at least one PLINK input file base")
 
-    if not isfile(options.phenoFile) and not isfile(options.emmaPheno):
-        parser.error("Please provide a phenotype file using the --phenofile or --emmaPHENO argument.")
+    # if (not options.phenoFile and not options.emmaPheno) or not isfile(options.phenoFile) and not isfile(options.emmaPheno):
+    #     print options.phenoFile
+    #     print options.emmaPheno
+    #     parser.error("Please provide a phenotype file using the --phenofile or --emmaPHENO argument.")
 
     return options, args

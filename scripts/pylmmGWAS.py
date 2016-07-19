@@ -21,8 +21,8 @@ import time
 import sys
 from cl_parsers import GWAS_parser
 import numpy as np
-from pylmm.lmm import LMM
-from pylmm import input
+from pylmm.pylmm.lmm import LMM
+from pylmm.pylmm import input
 from os import listdir
 from os.path import join, split, splitext, exists, isfile
 import gzip
@@ -68,8 +68,7 @@ def read_emma_phenos(options, plink_object):
     return plink_object
 
 
-def read_covariates(parser, plink_object):
-    options, args = parser.parse_args()
+def read_covariates(options, plink_object):
     # READING Covariate File
     if options.covfile:
         if options.verbose:
@@ -108,7 +107,7 @@ def read_kfile(fn, n_indivs, verbose):
             K = np.fromstring(input_zip, sep=' ')  # Assume that space separated
     else:
         K = np.fromfile(open(fn, 'r'), sep=' ')
-    K.resize((len(n_indivs), len(n_indivs)))
+    K.resize(n_indivs, n_indivs)
 
     end = time.time()
     # Other slower ways
@@ -180,7 +179,10 @@ def setup_lmm_object(options, Y, K, Kva, Kve, X0):
     return lmm_object
 
 
-def main():
+def main(fake_args=None):
+    print sys.argv
+    if fake_args:
+        sys.argv += fake_args
     options, args = GWAS_parser()
     plink_object = read_snp_input(options)
     if options.emmaPheno:
@@ -257,4 +259,9 @@ def run_association_tests(options, plink_object, lmm_object, missing_pheno_mask,
             outputResult(output_file, snp_id, beta, np.sqrt(betaVar).sum(), ts, ps)
 
 if __name__ == "__main__":
-    main()
+    more_args = ['-v',
+                 '--kfile', '../data/snps.132k.clean.noX.pylmm.kin',
+                 '--bfile', '../data/snps.132k.clean.noX',
+                 '--phenofile', '../data/snps.132k.clean.noX.fake.phenos',
+                 'out.test']
+    main(more_args)

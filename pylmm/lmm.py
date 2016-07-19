@@ -73,7 +73,7 @@ class LMM:
             Kve = []
         self.nonmissing = has_pheno_mask
 
-        if Kva is None or Kve is None:
+        if not Kva or not Kve:
             if self.verbose:
                 sys.stderr.write(
                     "Obtaining eigendecomposition for {}x{} matrix\n".format(
@@ -146,7 +146,7 @@ class LMM:
          REML is computed by adding additional terms to the standard LL and can be computed by setting REML=True.
         """
 
-        if X == None:
+        if X is None:
             X = self.X0t
         elif stack:
             self.X0t_stack[:, (self.q)] = matrixMult(self.Kve.T, X)[:, 0]
