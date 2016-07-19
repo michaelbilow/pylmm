@@ -28,7 +28,7 @@ from os.path import join, split, splitext, exists, isfile
 import gzip
 
 
-def read_snp_input(options, args):
+def read_snp_input(options):
     # READING PLINK input
     if options.verbose:
         sys.stderr.write("Reading SNP input...\n")
@@ -47,28 +47,24 @@ def read_snp_input(options, args):
                                    normGenotype=options.normalizeGenotype)
     else:
         raise ValueError
-    return options, args, plink_object, output_fn
+    return plink_object
 
 
-def read_phenotypes(parser, plink_object):
-    options, args = parser.parse_args()
-
-
+def read_emma_phenos(options, plink_object):
     # Read the emma phenotype file if provided.
     # Format should be rows are phenotypes and columns are individuals.
-    if options.emmaPheno:
-        with open(options.emmaPheno, 'r') as emma_phenofile:
-            P = []
-            for line in emma_phenofile:
-                v = line.strip().split()
-                p = []
-                for x in v:
-                    try:
-                        p.append(float(x))
-                    except ValueError:
-                        p.append(np.nan)
-                P.append(p)
-        plink_object.phenos = np.array(P).T
+    with open(options.emmaPheno, 'r') as emma_phenofile:
+        P = []
+        for line in emma_phenofile:
+            v = line.strip().split()
+            p = []
+            for x in v:
+                try:
+                    p.append(float(x))
+                except ValueError:
+                    p.append(np.nan)
+            P.append(p)
+    plink_object.phenos = np.array(P).T
     return plink_object
 
 
@@ -95,10 +91,10 @@ def read_covariates(parser, plink_object):
         X0 = np.ones((plink_object.phenos.shape[0], 1))
 
     if np.isnan(X0).sum():
-        parser.error("The covariate file {} contains missing values. "
-                     "At this time we are not dealing with this case.  "
-                     "Either remove those individuals with missing values "
-                     "or replace them in some way.".format(options.covfile))
+        raise ValueError('The covariate file {} contains missing values. '
+                         'At this time we are not dealing with this case.  \n'
+                         'Either remove those individuals with missing values '
+                         'or replace them in some way.'.format(options.covfile))
     return X0
 
 
@@ -186,8 +182,13 @@ def setup_lmm_object(Y, K, Kva, Kve, X0, options):
 
 
 def main():
-    parser = GWAS_parser()
-    options, args, plink_object, output_fn = parse_command_line(parser)
+    options, args = GWAS_parser()
+    output_fn = args[0]
+    plink_object = read_snp_input(options)
+    if options.emmaPheno:
+        read_emma_phenos(options, plink_object)
+    read_covariates(options, plink_object)
+
 
     return
 
