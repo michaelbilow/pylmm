@@ -47,7 +47,8 @@ def parse_command_line(parser):
         plink_object = input.plink(options.tfile, type='t')
     # elif options.pfile: IN = input.plink(options.pfile,type='p')
     elif options.emmaFile:
-        if not options.numSNPs: parser.error("You must provide the number of SNPs when specifying an emma formatted file.")
+        if not options.numSNPs:
+            parser.error("You must provide the number of SNPs when specifying an emma formatted file.")
         plink_object = input.plink(options.emmaFile, type='emma')
     else:
         parser.error(

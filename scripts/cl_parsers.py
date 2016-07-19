@@ -110,7 +110,7 @@ def GWAS_parser():
                              help="The location of the precomputed eigendecomposition for the kinship file.  "
                                   "These can be computed with pylmmKinship.py.")
     advancedGroup.add_option("--noMean", dest="noMean", default=False, action="store_true",
-                             help="This option only applies when --cofile is used.  When covfile is provided, "
+                             help="This option only applies when --covfile is used.  When covfile is provided, "
                                   "the program will automatically add a global mean covariate to the model "
                                   "unless this option is specified.")
 
