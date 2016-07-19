@@ -107,7 +107,7 @@ def read_kfile(fn, n_indivs, verbose):
             K = np.fromstring(input_zip, sep=' ')  # Assume that space separated
     else:
         K = np.fromfile(open(fn, 'r'), sep=' ')
-    K.resize((len(n_indivs), len(n_indivs)))
+    K.resize(n_indivs, n_indivs)
 
     end = time.time()
     # Other slower ways
@@ -261,6 +261,6 @@ def run_association_tests(options, plink_object, lmm_object, missing_pheno_mask,
 if __name__ == "__main__":
     more_args = ['--kfile', '../data/snps.132k.clean.noX.pylmm.kin',
                  '--bfile', '../data/snps.132k.clean.noX',
-                 '--phenofile', '../data/snps.132k.noX.fake.phenos',
+                 '--phenofile', '../data/snps.132k.clean.noX.fake.phenos',
                  'out.test']
     main(more_args)

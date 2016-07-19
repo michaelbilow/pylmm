@@ -212,9 +212,11 @@ class plink:
         return G
 
     def getPhenos(self, phenoFile=None):
-        if not phenoFile: self.phenoFile = phenoFile = self.fbase + ".phenos"
+        if not phenoFile:
+            phenoFile = self.fbase + ".phenos"
+            self.phenoFile = phenoFile
         if not os.path.isfile(phenoFile):
-            # sys.stderr.write("Could not find phenotype file: %s\n" % (phenoFile))
+            sys.stderr.write("Could not find phenotype file: {}\n".format(phenoFile))
             return
         f = open(phenoFile, 'r')
         keys = []
