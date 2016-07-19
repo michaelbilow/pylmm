@@ -1,5 +1,6 @@
 from optparse import OptionParser, OptionGroup
-
+import sys
+from os.path import exists, isfile
 
 def kinship_parser():
     """
@@ -37,6 +38,27 @@ def kinship_parser():
 
     parser.add_option_group(basicGroup)
     # parser.add_option_group(advancedGroup)
+
+    options, args = parser.parse_args()
+    if len(args) != 1:
+        parser.print_help()
+        sys.exit()
+
+    # Parser Assetions
+
+    if not options.tfile and not options.bfile and not options.emmaFile:
+        # if not options.pfile and not options.tfile and not options.bfile:
+        parser.error("You must provide at least one PLINK input file base "
+                     "(--tfile or --bfile) or an EMMA formatted file (--emmaSNP).")
+    if not options.kfile:
+        parser.error("Please provide a pre-computed kinship file")
+
+    if not options.bfile and not options.tfile and not options.emmaFile:
+        parser.error("You must provide at least one PLINK input file base")
+
+    if not isfile(options.phenoFile) and not isfile(options.emmaPheno):
+        parser.error("Please provide a phenotype file using the --phenofile or --emmaPHENO argument.")
+
     return parser
 
 
@@ -127,3 +149,4 @@ def GWAS_parser():
     parser.add_option_group(basicGroup)
     parser.add_option_group(advancedGroup)
     parser.add_option_group(experimentalGroup)
+    return parser

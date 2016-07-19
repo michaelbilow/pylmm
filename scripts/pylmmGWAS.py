@@ -19,9 +19,8 @@
 import pdb
 import time
 import sys
-from optparse import OptionParser, OptionGroup
+from cl_parsers import GWAS_parser
 import numpy as np
-from scipy import linalg
 from pylmm.lmm import LMM
 from pylmm import input
 from os import listdir
@@ -29,29 +28,7 @@ from os.path import join, split, splitext, exists, isfile
 import gzip
 
 
-def printOutHead():
-    out.write("\t".join(["SNP_ID", "BETA", "BETA_SD", "F_STAT", "P_VALUE"]) + "\n")
-
-
-def outputResult(id, beta, betaSD, ts, ps):
-    out.write("\t".join([str(x) for x in [id, beta, betaSD, ts, ps]]) + "\n")
-
-
-def parse_command_line(parser):
-    options, args = parser.parse_args()
-    if len(args) != 1:
-        parser.print_help()
-        sys.exit()
-
-    output_fn = args[0]
-
-    if not options.tfile and not options.bfile and not options.emmaFile:
-        # if not options.pfile and not options.tfile and not options.bfile:
-        parser.error("You must provide at least one PLINK input file base "
-                     "(--tfile or --bfile) or an EMMA formatted file (--emmaSNP).")
-    if not options.kfile:
-        parser.error("Please provide a pre-computed kinship file")
-
+def read_snp_input(options, args):
     # READING PLINK input
     if options.verbose:
         sys.stderr.write("Reading SNP input...\n")
@@ -69,14 +46,13 @@ def parse_command_line(parser):
                                    phenoFile=options.phenoFile,
                                    normGenotype=options.normalizeGenotype)
     else:
-        parser.error("You must provide at least one PLINK input file base")
-    return options, args, plink_object
+        raise ValueError
+    return options, args, plink_object, output_fn
 
 
 def read_phenotypes(parser, plink_object):
     options, args = parser.parse_args()
-    if not isfile(options.phenoFile) and not isfile(options.emmaPheno):
-        parser.error("Please provide a phenotype file using the --phenofile or --emmaPHENO argument.")
+
 
     # Read the emma phenotype file if provided.
     # Format should be rows are phenotypes and columns are individuals.
@@ -158,17 +134,17 @@ def read_kinship(parser, plink_object):
     return K, K2
 
 
-def setup_LMM(parser, plink_object, Y, X0, K, K2):
+def remove_missing_and_load_eigendecomposition(parser, plink_object, X0, K, K2):
     options, args = parser.parse_args()
 
     # PROCESS the phenotype data -- Remove missing phenotype values
     # Keep will now index into the "full" data to select what we keep (either everything or a subset of non missing data
     Y = plink_object.phenos[:, options.pheno]
-    v = np.isnan(Y)
-    keep = True - v
-    if v.sum():
+    missing_values_mask = np.isnan(Y)
+    keep = True - missing_values_mask
+    if missing_values_mask.sum():
         if options.verbose:
-            sys.stderr.write("Cleaning the phenotype vector by removing %d individuals...\n".format(v.sum()))
+            sys.stderr.write("Cleaning the phenotype vector by removing %d individuals...\n".format(missing_values_mask.sum()))
         Y = Y[keep]
         X0 = X0[keep, :]
         K = K[keep, :][:, keep]
@@ -179,7 +155,7 @@ def setup_LMM(parser, plink_object, Y, X0, K, K2):
 
     # Only load the decomposition if we did not remove individuals.
     # Otherwise it would not be correct and we would have to compute it again.
-    if not v.sum() and options.eigenfile:
+    if not missing_values_mask.sum() and options.eigenfile:
         if options.verbose:
             sys.stderr.write("Loading pre-computed eigendecomposition...\n")
         Kva = np.load(options.eigenfile + ".Kva")
@@ -187,13 +163,16 @@ def setup_LMM(parser, plink_object, Y, X0, K, K2):
     else:
         Kva = []
         Kve = []
+    return
 
+
+def setup_lmm_object(Y, K, Kva, Kve, X0, options):
     # CREATE LMM object for association
     n = K.shape[0]
     if not options.kfile2:
         lmm_object = LMM(Y, K, Kva, Kve, X0, verbose=options.verbose)
-    else:
-        lmm_object = LMM_withK2(Y, K, Kva, Kve, X0, verbose=options.verbose, K2=K2) # Not implemented
+    else:  # Not implemented
+        lmm_object = LMM_withK2(Y, K, Kva, Kve, X0, verbose=options.verbose, K2=K2)
 
     if options.verbose:
         sys.stderr.write("Computing fit for null model\n")
@@ -205,61 +184,79 @@ def setup_LMM(parser, plink_object, Y, X0, K, K2):
         "\t** heritability=%0.3f, sigma=%0.3f, w=%0.3f\n" % (lmm_object.optH, lmm_object.optSigma, lmm_object.optW))
     return lmm_object
 
-# Buffers for pvalues and t-stats
-PS = []
-TS = []
-count = 0
-out = open(output_fn, 'w')
-printOutHead()
 
-for snp, id in plink_object:
-    count += 1
-    if options.verbose and count % 1000 == 0:
-        sys.stderr.write("At SNP %d\n" % count)
+def main():
+    parser = GWAS_parser()
+    options, args, plink_object, output_fn = parse_command_line(parser)
 
-    x = snp[keep].reshape((n, 1))
-    v = np.isnan(x).reshape((-1,))
-    # Check SNPs for missing values
-    if v.sum():
-        keeps = True - v
-        xs = x[keeps, :]
-        if keeps.sum() <= 1 or xs.var() <= 1e-6:
-            PS.append(np.nan)
-            TS.append(np.nan)
-            outputResult(id, np.nan, np.nan, np.nan, np.nan)
-            continue
+    return
 
-        # Its ok to center the genotype -  I used options.normalizeGenotype to
-        # force the removal of missing genotypes as opposed to replacing them with MAF.
-        if not options.normalizeGenotype: xs = (xs - xs.mean()) / np.sqrt(xs.var())
-        Ys = Y[keeps]
-        X0s = X0[keeps, :]
-        Ks = K[keeps, :][:, keeps]
-        if options.kfile2: K2s = K2[keeps, :][:, keeps]
-        if options.kfile2:
-            Ls = LMM_withK2(Ys, Ks, X0=X0s, verbose=options.verbose, K2=K2s)
+
+def printOutHead():
+    out.write("\t".join(["SNP_ID", "BETA", "BETA_SD", "F_STAT", "P_VALUE"]) + "\n")
+
+
+def outputResult(id, beta, betaSD, ts, ps):
+    out.write("\t".join([str(x) for x in [id, beta, betaSD, ts, ps]]) + "\n")
+
+
+
+def run_association_tests(output_fn, options)
+    # Buffers for pvalues and t-stats
+    PS = []
+    TS = []
+    count = 0
+    out = open(output_fn, 'w')
+    printOutHead()
+
+    for snp, id in plink_object:
+        count += 1
+        if options.verbose and count % 1000 == 0:
+            sys.stderr.write("At SNP %d\n" % count)
+
+        x = snp[keep].reshape((n, 1))
+        v = np.isnan(x).reshape((-1,))
+        # Check SNPs for missing values
+        if v.sum():
+            keeps = True - v
+            xs = x[keeps, :]
+            if keeps.sum() <= 1 or xs.var() <= 1e-6:
+                PS.append(np.nan)
+                TS.append(np.nan)
+                outputResult(id, np.nan, np.nan, np.nan, np.nan)
+                continue
+
+            # Its ok to center the genotype -  I used options.normalizeGenotype to
+            # force the removal of missing genotypes as opposed to replacing them with MAF.
+            if not options.normalizeGenotype: xs = (xs - xs.mean()) / np.sqrt(xs.var())
+            Ys = Y[keeps]
+            X0s = X0[keeps, :]
+            Ks = K[keeps, :][:, keeps]
+            if options.kfile2: K2s = K2[keeps, :][:, keeps]
+            if options.kfile2:
+                Ls = LMM_withK2(Ys, Ks, X0=X0s, verbose=options.verbose, K2=K2s)
+            else:
+                Ls = LMM(Ys, Ks, X0=X0s, verbose=options.verbose)
+            if options.refit:
+                Ls.fit(X=xs, REML=options.REML)
+            else:
+                # try:
+                Ls.fit(REML=options.REML)
+                # except: pdb.set_trace()
+            ts, ps, beta, betaVar = Ls.association(xs, REML=options.REML, returnBeta=True)
         else:
-            Ls = LMM(Ys, Ks, X0=X0s, verbose=options.verbose)
-        if options.refit:
-            Ls.fit(X=xs, REML=options.REML)
-        else:
-            # try:
-            Ls.fit(REML=options.REML)
-            # except: pdb.set_trace()
-        ts, ps, beta, betaVar = Ls.association(xs, REML=options.REML, returnBeta=True)
-    else:
-        if x.var() == 0:
-            PS.append(np.nan)
-            TS.append(np.nan)
-            outputResult(id, np.nan, np.nan, np.nan, np.nan)
-            continue
+            if x.var() == 0:
+                PS.append(np.nan)
+                TS.append(np.nan)
+                outputResult(id, np.nan, np.nan, np.nan, np.nan)
+                continue
 
-        if options.refit: L.fit(X=x, REML=options.REML)
-        ts, ps, beta, betaVar = L.association(x, REML=options.REML, returnBeta=True)
+            if options.refit: L.fit(X=x, REML=options.REML)
+            ts, ps, beta, betaVar = L.association(x, REML=options.REML, returnBeta=True)
 
-    outputResult(id, beta, np.sqrt(betaVar).sum(), ts, ps)
-    PS.append(ps)
-    TS.append(ts)
+        outputResult(id, beta, np.sqrt(betaVar).sum(), ts, ps)
+        PS.append(ps)
+        TS.append(ts)
 
 if __name__ == "__main__":
-    pass
+    main()
