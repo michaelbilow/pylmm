@@ -46,7 +46,7 @@ def read_snp_input(options):
                                    phenoFile=options.phenoFile,
                                    normGenotype=options.normalizeGenotype)
     else:
-        raise ValueError
+        raise ValueError("No SNP File!")
     return plink_object
 
 
@@ -107,7 +107,7 @@ def read_kfile(fn, n_indivs, verbose):
         with gzip.open(fn, 'r') as input_zip:
             K = np.fromstring(input_zip, sep=' ')  # Assume that space separated
     else:
-        K = np.fromfile(open(fn, 'r'), sep=" ")
+        K = np.fromfile(open(fn, 'r'), sep=' ')
     K.resize((len(n_indivs), len(n_indivs)))
 
     end = time.time()
@@ -115,13 +115,12 @@ def read_kfile(fn, n_indivs, verbose):
     # K = np.loadtxt(options.kfile)
     # K = np.genfromtxt(options.kfile)
     if verbose:
-        sys.stderr.write("Read the {} x {} kinship matrix in {:.3} seconds \n"
+        sys.stderr.write("Read the {} x {} kinship matrix in {:.3} seconds\n"
                          .format(K.shape[0], K.shape[1], end - begin))
     return K
 
 
-def read_kinship(parser, plink_object):
-    options, args = parser.parse_args()
+def read_kinship(options, plink_object):
     K = read_kfile(options.kfile, len(plink_object.indivs), options.verbose)
     if options.kfile2:  ## Currently Deprecated
         K2 = read_kfile(options.kfile2, len(plink_object.indivs), options.verbose)
@@ -130,36 +129,36 @@ def read_kinship(parser, plink_object):
     return K, K2
 
 
-def remove_missing_and_load_eigendecomposition(parser, plink_object, X0, K, K2):
-    options, args = parser.parse_args()
-
+def load_phenos_and_identify_missing(options, plink_object):
     # PROCESS the phenotype data -- Remove missing phenotype values
     # Keep will now index into the "full" data to select what we keep (either everything or a subset of non missing data
     Y = plink_object.phenos[:, options.pheno]
-    missing_values_mask = np.isnan(Y)
-    keep = True - missing_values_mask
-    if missing_values_mask.sum():
+    missing_pheno_mask = np.isnan(Y)
+    return missing_pheno_mask, Y
+
+
+def clean_missing_phenos(options, missing_pheno_mask, Y, X0, K, K2):
+    keep = ~missing_pheno_mask
+    if missing_pheno_mask.sum():
         if options.verbose:
-            sys.stderr.write("Cleaning the phenotype vector by removing %d individuals...\n".format(missing_values_mask.sum()))
+            sys.stderr.write("Cleaning the phenotype vector by removing {} individuals...\n"
+                             .format(missing_pheno_mask.sum()))
         Y = Y[keep]
         X0 = X0[keep, :]
         K = K[keep, :][:, keep]
         if options.kfile2:
             K2 = K2[keep, :][:, keep]
-        Kva = []
-        Kve = []
-
-    # Only load the decomposition if we did not remove individuals.
-    # Otherwise it would not be correct and we would have to compute it again.
-    if not missing_values_mask.sum() and options.eigenfile:
-        if options.verbose:
-            sys.stderr.write("Loading pre-computed eigendecomposition...\n")
-        Kva = np.load(options.eigenfile + ".Kva")
-        Kve = np.load(options.eigenfile + ".Kve")
+        Kva, Kve = [], []
     else:
-        Kva = []
-        Kve = []
-    return
+        if options.eigenfile:
+            if options.verbose:
+                sys.stderr.write("Loading pre-computed eigendecomposition...\n")
+            Kva = np.load(options.eigenfile + ".Kva")
+            Kve = np.load(options.eigenfile + ".Kve")
+        else:
+            Kva, Kve = [], []
+
+    return Y, X0, K, K2, Kva, Kve
 
 
 def setup_lmm_object(Y, K, Kva, Kve, X0, options):
@@ -168,7 +167,8 @@ def setup_lmm_object(Y, K, Kva, Kve, X0, options):
     if not options.kfile2:
         lmm_object = LMM(Y, K, Kva, Kve, X0, verbose=options.verbose)
     else:  # Not implemented
-        lmm_object = LMM_withK2(Y, K, Kva, Kve, X0, verbose=options.verbose, K2=K2)
+        # lmm_object = LMM_withK2(Y, K, Kva, Kve, X0, verbose=options.verbose, K2=K2)
+        raise ValueError("2 Kinship Matrices Not Implemented; use GCTA to compute variance components")
 
     if options.verbose:
         sys.stderr.write("Computing fit for null model\n")
@@ -177,7 +177,7 @@ def setup_lmm_object(Y, K, Kva, Kve, X0, options):
     if options.verbose and not options.kfile2:
         sys.stderr.write("\t** heritability={:.3}, sigma={:.3}\n".format(lmm_object.optH, lmm_object.optSigma))
     if options.verbose and options.kfile2: sys.stderr.write(
-        "\t** heritability=%0.3f, sigma=%0.3f, w=%0.3f\n" % (lmm_object.optH, lmm_object.optSigma, lmm_object.optW))
+        "\t** heritability={:.3}, sigma={:.3}, w={:.3}\n".format(lmm_object.optH, lmm_object.optSigma, lmm_object.optW))
     return lmm_object
 
 
@@ -187,8 +187,9 @@ def main():
     plink_object = read_snp_input(options)
     if options.emmaPheno:
         read_emma_phenos(options, plink_object)
-    read_covariates(options, plink_object)
-
+    X0 = read_covariates(options, plink_object)
+    K, K2 = read_kinship(options, plink_object)
+    missing_phenos_mask, Y = load_phenos_and_identify_missing(options, plink_object)
 
     return
 
