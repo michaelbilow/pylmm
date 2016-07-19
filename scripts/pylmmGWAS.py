@@ -259,7 +259,8 @@ def run_association_tests(options, plink_object, lmm_object, missing_pheno_mask,
             outputResult(output_file, snp_id, beta, np.sqrt(betaVar).sum(), ts, ps)
 
 if __name__ == "__main__":
-    more_args = ['--kfile', '../data/snps.132k.clean.noX.pylmm.kin',
+    more_args = ['-v',
+                 '--kfile', '../data/snps.132k.clean.noX.pylmm.kin',
                  '--bfile', '../data/snps.132k.clean.noX',
                  '--phenofile', '../data/snps.132k.clean.noX.fake.phenos',
                  'out.test']
