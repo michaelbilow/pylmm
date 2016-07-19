@@ -26,6 +26,8 @@ from pylmm.lmm import LMM
 from pylmm import input
 from os import listdir
 from os.path import join, split, splitext, exists, isfile
+import gzip
+
 
 def printOutHead():
     out.write("\t".join(["SNP_ID", "BETA", "BETA_SD", "F_STAT", "P_VALUE"]) + "\n")
@@ -91,110 +93,117 @@ def read_phenotypes(parser, plink_object):
                         p.append(np.nan)
                 P.append(p)
         plink_object.phenos = np.array(P).T
-    return
+    return plink_object
 
-# READING Covariate File
-if options.covfile:
-    if options.verbose:
-        sys.stderr.write("Reading covariate file...\n")
-    P = IN.getCovariates(options.covfile)
-    if options.noMean:
-        X0 = P
+
+def read_covariates(parser, plink_object):
+    options, args = parser.parse_args()
+    # READING Covariate File
+    if options.covfile:
+        if options.verbose:
+            sys.stderr.write("Reading covariate file...\n")
+        raw_covariates = plink_object.getCovariates(options.covfile)
+        if options.noMean:
+            X0 = raw_covariates
+        else:
+            X0 = np.hstack([np.ones((plink_object.phenos.shape[0], 1)), raw_covariates])
+    elif options.emmaCov:
+        if options.verbose:
+            sys.stderr.write("Reading covariate file...\n")
+        raw_covariates = plink_object.getCovariatesEMMA(options.emmaCov)
+        if options.noMean:
+            X0 = raw_covariates
+        else:
+            X0 = np.hstack([np.ones((plink_object.phenos.shape[0], 1)), raw_covariates])
     else:
-        X0 = np.hstack([np.ones((IN.phenos.shape[0], 1)), P])
-elif options.emmaCov:
-    if options.verbose:
-        sys.stderr.write("Reading covariate file...\n")
-    P = IN.getCovariatesEMMA(options.emmaCov)
-    if options.noMean:
-        X0 = P
-    else:
-        X0 = np.hstack([np.ones((IN.phenos.shape[0], 1)), P])
-else:
-    X0 = np.ones((IN.phenos.shape[0], 1))
+        X0 = np.ones((plink_object.phenos.shape[0], 1))
 
-if np.isnan(X0).sum():
-    parser.error(
-        "The covariate file %s contains missing values. At this time we are not dealing with this case.  Either remove those individuals with missing values or replace them in some way.")
+    if np.isnan(X0).sum():
+        parser.error("The covariate file {} contains missing values. "
+                     "At this time we are not dealing with this case.  "
+                     "Either remove those individuals with missing values "
+                     "or replace them in some way.".format(options.covfile))
+    return X0
 
-# READING Kinship - major bottleneck for large datasets
-if options.verbose: sys.stderr.write("Reading kinship...\n")
-begin = time.time()
-# This method seems to be the fastest and works if you already know the size of the matrix
-if options.kfile[-3:] == '.gz':
-    import gzip
 
-    f = gzip.open(options.kfile, 'r')
-    F = f.read()  # might exhaust mem if the file is huge
-    K = np.fromstring(F, sep=' ')  # Assume that space separated
-    f.close()
-else:
-    K = np.fromfile(open(options.kfile, 'r'), sep=" ")
-K.resize((len(IN.indivs), len(IN.indivs)))
-end = time.time()
-# Other slower ways
-# K = np.loadtxt(options.kfile)
-# K = np.genfromtxt(options.kfile)
-if options.verbose: sys.stderr.write(
-    "Read the %d x %d kinship matrix in %0.3fs \n" % (K.shape[0], K.shape[1], end - begin))
-
-if options.kfile2:
-    if options.verbose: sys.stderr.write("Reading second kinship...\n")
+def read_kfile(fn, n_indivs, verbose):
+    if verbose:
+        sys.stderr.write("Reading kinship...\n")
     begin = time.time()
     # This method seems to be the fastest and works if you already know the size of the matrix
-    if options.kfile2[-3:] == '.gz':
-        import gzip
-
-        f = gzip.open(options.kfile2, 'r')
-        F = f.read()  # might exhaust mem if the file is huge
-        K2 = np.fromstring(F, sep=' ')  # Assume that space separated
-        f.close()
+    if splitext(fn) == '.gz':
+        with gzip.open(fn, 'r') as input_zip:
+            K = np.fromstring(input_zip, sep=' ')  # Assume that space separated
     else:
-        K2 = np.fromfile(open(options.kfile2, 'r'), sep=" ")
-    K2.resize((len(IN.indivs), len(IN.indivs)))
+        K = np.fromfile(open(fn, 'r'), sep=" ")
+    K.resize((len(n_indivs), len(n_indivs)))
+
     end = time.time()
-    if options.verbose: sys.stderr.write(
-        "Read the %d x %d second kinship matrix in %0.3fs \n" % (K2.shape[0], K2.shape[1], end - begin))
+    # Other slower ways
+    # K = np.loadtxt(options.kfile)
+    # K = np.genfromtxt(options.kfile)
+    if verbose:
+        sys.stderr.write("Read the {} x {} kinship matrix in {:.3} seconds \n"
+                         .format(K.shape[0], K.shape[1], end - begin))
+    return K
 
-# PROCESS the phenotype data -- Remove missing phenotype values
-# Keep will now index into the "full" data to select what we keep (either everything or a subset of non missing data
-Y = IN.phenos[:, options.pheno]
-v = np.isnan(Y)
-keep = True - v
-if v.sum():
-    if options.verbose: sys.stderr.write("Cleaning the phenotype vector by removing %d individuals...\n" % (v.sum()))
-    Y = Y[keep]
-    X0 = X0[keep, :]
-    K = K[keep, :][:, keep]
-    if options.kfile2: K2 = K2[keep, :][:, keep]
-    Kva = []
-    Kve = []
 
-# Only load the decomposition if we did not remove individuals.
-# Otherwise it would not be correct and we would have to compute it again.
-if not v.sum() and options.eigenfile:
-    if options.verbose: sys.stderr.write("Loading pre-computed eigendecomposition...\n")
-    Kva = np.load(options.eigenfile + ".Kva")
-    Kve = np.load(options.eigenfile + ".Kve")
-else:
-    Kva = []
-    Kve = []
+def read_kinship(parser, plink_object):
+    options, args = parser.parse_args()
+    K = read_kfile(options.kfile, len(plink_object.indivs), options.verbose)
+    if options.kfile2:  ## Currently Deprecated
+        K2 = read_kfile(options.kfile2, len(plink_object.indivs), options.verbose)
+    else:
+        K2 = None
+    return K, K2
 
-# CREATE LMM object for association
-n = K.shape[0]
-if not options.kfile2:
-    L = LMM(Y, K, Kva, Kve, X0, verbose=options.verbose)
-else:
-    L = LMM_withK2(Y, K, Kva, Kve, X0, verbose=options.verbose, K2=K2)
 
-# Fit the null model -- if refit is true we will refit for each SNP, so no reason to run here
-if not options.refit:
-    if options.verbose: sys.stderr.write("Computing fit for null model\n")
-    L.fit()
-    if options.verbose and not options.kfile2: sys.stderr.write(
-        "\t heritability=%0.3f, sigma=%0.3f\n" % (L.optH, L.optSigma))
+def setup_LMM(parser, plink_object, Y, X0, K, K2):
+    options, args = parser.parse_args()
+
+    # PROCESS the phenotype data -- Remove missing phenotype values
+    # Keep will now index into the "full" data to select what we keep (either everything or a subset of non missing data
+    Y = plink_object.phenos[:, options.pheno]
+    v = np.isnan(Y)
+    keep = True - v
+    if v.sum():
+        if options.verbose:
+            sys.stderr.write("Cleaning the phenotype vector by removing %d individuals...\n".format(v.sum()))
+        Y = Y[keep]
+        X0 = X0[keep, :]
+        K = K[keep, :][:, keep]
+        if options.kfile2:
+            K2 = K2[keep, :][:, keep]
+        Kva = []
+        Kve = []
+
+    # Only load the decomposition if we did not remove individuals.
+    # Otherwise it would not be correct and we would have to compute it again.
+    if not v.sum() and options.eigenfile:
+        if options.verbose:
+            sys.stderr.write("Loading pre-computed eigendecomposition...\n")
+        Kva = np.load(options.eigenfile + ".Kva")
+        Kve = np.load(options.eigenfile + ".Kve")
+    else:
+        Kva = []
+        Kve = []
+
+    # CREATE LMM object for association
+    n = K.shape[0]
+    if not options.kfile2:
+        lmm_object = LMM(Y, K, Kva, Kve, X0, verbose=options.verbose)
+    else:
+        lmm_object = LMM_withK2(Y, K, Kva, Kve, X0, verbose=options.verbose, K2=K2) # Not implemented
+
+    if options.verbose:
+        sys.stderr.write("Computing fit for null model\n")
+    lmm_object.fit()
+
+    if options.verbose and not options.kfile2:
+        sys.stderr.write("\t** heritability={:.3}, sigma={:.3}\n".format(lmm_object.optH, lmm_object.optSigma))
     if options.verbose and options.kfile2: sys.stderr.write(
-        "\t heritability=%0.3f, sigma=%0.3f, w=%0.3f\n" % (L.optH, L.optSigma, L.optW))
+        "\t** heritability=%0.3f, sigma=%0.3f, w=%0.3f\n" % (lmm_object.optH, lmm_object.optSigma, lmm_object.optW))
+    return lmm_object
 
 # Buffers for pvalues and t-stats
 PS = []
@@ -203,7 +212,7 @@ count = 0
 out = open(output_fn, 'w')
 printOutHead()
 
-for snp, id in IN:
+for snp, id in plink_object:
     count += 1
     if options.verbose and count % 1000 == 0:
         sys.stderr.write("At SNP %d\n" % count)
