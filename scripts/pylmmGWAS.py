@@ -21,8 +21,8 @@ import time
 import sys
 from cl_parsers import GWAS_parser
 import numpy as np
-from pylmm.pylmm.lmm import LMM
-from pylmm.pylmm import input
+from pylmm.lmm import LMM
+from pylmm import input
 from os import listdir
 from os.path import join, split, splitext, exists, isfile
 import gzip

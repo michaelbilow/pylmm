@@ -33,7 +33,7 @@ if __name__ == "__main__":
         base_name = 'snps.132k.clean.noX{}'
         my_plink_object = plink(fbase=join(input_folder, base_name.format('')),
                                 kFile=join(input_folder, base_name.format('.pylmm.kin')),
-                                phenoFile=join(input_folder, base_name.format('.fake.phenos')), type='b',
+                                phenoFile='../data/snps.132k.clean.noX_missing.fake.phenos', type='b',
                                 normGenotype=True, readKFile=False, fastLMM_kinship=False)
     else:
     ### for finland human data, need pheno file though
@@ -42,5 +42,9 @@ if __name__ == "__main__":
                                 kFile=join(input_folder, base_name.format('.pylmm.kin')),
                                 phenoFile=None, type='t', normGenotype=False, readKFile=False,fastLMM_kinship=False)
 
-    lmm_object = LMM(my_plink_object.phenos, my_plink_object.K, verbose=True)
-    run_all_lmm_tests(lmm_object, my_plink_object)
+    lmm_object = LMM(Y=my_plink_object.phenos, K=my_plink_object.K, verbose=True)
+    individs = my_plink_object.indivs
+    rem_inidivids = my_plink_object.indivs_removed
+    plinkin = my_plink_object.K
+    lmmkin = lmm_object.K
+    #run_all_lmm_tests(lmm_object, my_plink_object)
