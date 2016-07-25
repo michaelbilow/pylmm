@@ -109,7 +109,7 @@ class plink:
         self.have_read = 0
         self.snpFileHandle = open(file, 'r')
 
-        self.BytestoRead = self.N / 4 + (self.N % 4 and 1 or 0)
+        self.BytestoRead = int(float(self.N) / 4 + (self.N % 4 and 1 or 0)) #forgot to close parentheses
         self._formatStr = 'c' * self.BytestoRead
 
         file = self.fbase + '.bed'
@@ -212,9 +212,11 @@ class plink:
         return G
 
     def getPhenos(self, phenoFile=None):
-        if not phenoFile: self.phenoFile = phenoFile = self.fbase + ".phenos"
+        if not phenoFile:
+            phenoFile = self.fbase + ".phenos"
+            self.phenoFile = phenoFile
         if not os.path.isfile(phenoFile):
-            # sys.stderr.write("Could not find phenotype file: %s\n" % (phenoFile))
+            sys.stderr.write("Could not find phenotype file: {}\n".format(phenoFile))
             return
         f = open(phenoFile, 'r')
         keys = []
@@ -238,6 +240,9 @@ class plink:
 
         self.phenos = P
         return P
+
+    def getSpecPheno(self, index):
+        return np.array([x[index] for x in self.phenos])
 
     def getIndivs(self, base, type='b'):
         if type == 't':

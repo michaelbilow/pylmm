@@ -1,2 +1,6 @@
 *.pyc
+*.test
 data/*
+.DS_Store
+.idea/*
+build/*
