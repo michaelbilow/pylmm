@@ -202,8 +202,8 @@ def main(fake_args=None):
     return
 
 
-def outputResult(output_file, id, beta, betaSD, ts, ps):
-    output_file.write("\t".join([str(x) for x in [id, beta, betaSD, ts, ps]]) + "\n")
+def outputResult(output_file, snp_id, beta, betaSD, t_stat, p_val):
+    output_file.write("\t".join([str(_) for _ in [snp_id, beta, betaSD, t_stat, p_val]]) + "\n")
     return
 
 
@@ -246,7 +246,7 @@ def run_association_tests(options, plink_object, lmm_object, missing_pheno_mask,
                     tmp_lmm_object = LMM(tmp_Y, tmp_K, X0=tmp_X0, verbose=options.verbose)
 
                 tmp_lmm_object.fit(X=tmp_snp_vals, REML=options.REML)
-                ts, ps, beta, betaVar = tmp_lmm_object.association(tmp_snp_vals, REML=options.REML, returnBeta=True)
+                t_stat, p_val, beta, betaVar = tmp_lmm_object.association(tmp_snp_vals, REML=options.REML, returnBeta=True)
             else:
                 if snp_vals.var() == 0:
                     outputResult(snp_id, np.nan, np.nan, np.nan, np.nan)
@@ -254,9 +254,9 @@ def run_association_tests(options, plink_object, lmm_object, missing_pheno_mask,
 
                 if options.refit:
                     lmm_object.fit(X=snp_vals, REML=options.REML)
-                ts, ps, beta, betaVar = lmm_object.association(snp_vals, REML=options.REML, returnBeta=True)
+                t_stat, p_val, beta, betaVar = lmm_object.association(snp_vals, REML=options.REML, returnBeta=True)
 
-            outputResult(output_file, snp_id, beta, np.sqrt(betaVar).sum(), ts, ps)
+            outputResult(output_file, snp_id, beta, np.sqrt(betaVar).sum(), t_stat, p_val)
 
 if __name__ == "__main__":
     more_args = ['-v',
