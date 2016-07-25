@@ -42,9 +42,7 @@ if __name__ == "__main__":
                                 kFile=join(input_folder, base_name.format('.pylmm.kin')),
                                 phenoFile=None, type='t', normGenotype=False, readKFile=False,fastLMM_kinship=False)
 
-    lmm_object = LMM(Y=my_plink_object.phenos, K=my_plink_object.K, verbose=True)
+    phenos = my_plink_object.phenos
+    lmm_object = LMM(Y=my_plink_object.getSpecPheno(0), K=my_plink_object.K, verbose=True)
     individs = my_plink_object.indivs
-    rem_inidivids = my_plink_object.indivs_removed
-    plinkin = my_plink_object.K
-    lmmkin = lmm_object.K
     #run_all_lmm_tests(lmm_object, my_plink_object)

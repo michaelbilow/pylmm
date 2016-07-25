@@ -241,6 +241,9 @@ class plink:
         self.phenos = P
         return P
 
+    def getSpecPheno(self, index):
+        return np.array([x[index] for x in self.phenos])
+
     def getIndivs(self, base, type='b'):
         if type == 't':
             famFile = "%s.tfam" % base
