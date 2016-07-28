@@ -32,4 +32,4 @@ pylmm is offered under the GNU Affero GPL (https://www.gnu.org/licenses/why-affe
 
 
 
-
+pylmm contains code from commit 16056e3 of ALBI. See github.com/cozygene/albi for details.
