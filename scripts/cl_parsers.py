@@ -40,6 +40,109 @@ def kinship_parser():
     # parser.add_option_group(advancedGroup)
     return parser
 
+def ALBI_parser():
+    usage = """usage: %prog [options] --albi_kinship_eigenvalues filename --albi_kinship_eigenvectors filename
+                --albi_covariates filename --albi_save_dist_filename filename
+    ALBI can be used to estimate the distributions of heritability and their confidence intervals and to save the results.
+    There are two cases in which ALBI distributions can be made:
+
+        1) All covariates are eigenvectors:
+        python albi.py --albi_kinship_eigenvalues filename
+                 [--albi_use_eigenvectors_as_covariates <list of #>]
+                 [--albi_precision <# of grid points>]
+                 [--albi_distribution_precision <# of grid points>]
+                 [--albi_samples <# of random samples>]
+                  --albi_save_dist_filename filename
+
+        2) General covariates
+        python albi.py --albi_kinship_eigenvalues filename
+                  --albi_kinship_eigenvectors filename
+                  --albi_covariates filename
+                 [--albi_precision <# of grid points>]
+                 [--albi_distribution_precision <# of grid points>]
+                 [--albi_samples <# of random samples>]
+                  --albi_save_dist_filename filename
+
+        To load ALBI estimated distributions and calculate their confidence intervals
+        python albi.py --albi_load_dist_filename filename
+                 (--albi_estimates_filename filename
+                    or
+                  --albi_estimate_grid <# of grid points>)
+                 [--albi_confidence <required confidence level>]
+                 [--albi_output_filename filename]
+                """
+    parser = OptionParser(usage=usage)
+    eigenGroup = OptionGroup(parser, "Covariates are eigenvectors")
+    gencovGroup = OptionGroup(parser, "General covariates")
+    CIGroup = OptionGroup(parser, "Create CIs")
+
+    eigenGroup.add_option("-albi_k", "--albi_kinship_eigenvalues", dest='albi_eigenvalfile',
+                          help='A file containing the eigenvalues of the kinship matrix, one '
+                               'eigenvalue per line, in text format. This could be created, for '
+                               'example, with GCTAs --pca flag.')
+    eigenGroup.add_option('-albi_u', '--albi_use_eigenvectors_as_covariates', dest='albi_eigenvec_list',
+                          help='A list detailing which eigenvectors should be used as covariates. For '
+                               'example: If you only use an intercept term, and your kinship matrix was '
+                               'constructed from a standardized SNP matrix, use -1 (the last eigenvector '
+                               'is equal to the constant vector); if in addition, you add the first 3 PCs '
+                               'as covariates, use 0,1,2,-1. Default is -1.')
+    eigenGroup.add_option('-albi_p', '--albi_precision', dest='albi_precision',
+                          help='he number of grid points of the true heritability values, for which the '
+                               'estimator distributions are estimated. Effectively, this is the precision '
+                               'at which the CIs will be given (e.g., 100 grid points = 0.01 precision). '
+                               'Default is 100.')
+    eigenGroup.add_option('-albi_d', '--albi_distribution_precision', dest='albi_dist_precision',
+                          help='The number of grid points at which each estimator distribution is estimated. '
+                               'This controls the accuracy of estimation. Default is 100.')
+    eigenGroup.add_option('-albi_n', '--albi_samples', dest='albi_samples',
+                          help='Filename at which to save the estimated distributions.')
+    eigenGroup.add_option('-albi_s', '--albi_dest_filename', dest='albi_savefile',
+                           help='Filename at which to save the estimated distributions.')
+
+    gencovGroup.add_option('-albi_k', '--albi_kinship_eigenvalues', dest='albi_eigenvalfile',
+                           help='A file containing the eigenvalues of the kinship matrix, one '
+                                'eigenvalue per line, in text format. This could be created, for '
+                                'example, with GCTAs --pca flag.')
+    gencovGroup.add_option('-albi_v', '--albi_kinship_eigenvectors', dest='albi_eigenvecfile',
+                           help='A file containing the eigenvectors of the kinship matrix, one '
+                                'eigenvector per column, in text format. This could be created, '
+                                'for example, with GCTAs --pca flag.')
+    gencovGroup.add_option('-albi_x', '--albi_covariates', dest='albi_covfile',
+                           help='A file containing the covariates, one covariate per column, in text format.'
+                                ' Remember to include a constant column if you used an intercept term.')
+    gencovGroup.add_option('-albi_p', '--albi_precision', dest='albi_precision',
+                           help='The number of grid points of the true heritability values, for which the '
+                                'estimator distributions are estimated. Effectively, this is the precision '
+                                'at which the CIs will be given (e.g., 100 grid points = 0.01 precision). '
+                                'Default is 100.')
+    gencovGroup.add_option('-albi_d', '--albi_distribution_precision', dest='albi_dist_precision',
+                           help='The number of grid points at which each estimator distribution is estimated.'
+                                ' This controls the accuracy of estimation. Default is 100.')
+    gencovGroup.add_option('-albi_n', '--albi_samples', dest='albi_samples',
+                           help='Number of random bootstrap samples to use for estimation. Default is 1000.')
+    gencovGroup.add_option('-albi_s', '--albi_dest_filename', dest='albi_savefile',
+                           help='Filename at which to save the estimated distributions.')
+
+    CIGroup.add_option('-albi_l', '--albi_load_dist_filename', dest='albi_loadfile',
+                       help='Filename from which to load the estimated distributions.')
+    CIGroup.add_option('-albi_f', '--albi_estimates_filename', dest='albi_estfile',
+                       help='A filename containing a list of heritability estimates '
+                            '(one per line) in text format. A CI will be calculated for each one.')
+    CIGroup.add_option('-albi_g', '--albi_estimate_grid', dest='estgrid',
+                       help='Alternatively, one can ask ALBI to calculate CIs for a grid of heritability '
+                            'estimates (e.g., a grid of 100, will calculate CIs for 0, 0.01, ..., 0.99, 1). '
+                            'Default is 10.')
+    CIGroup.add_option('-albi_c', '--albi_confidence', dest='albi_conf',
+                       help='The required confidence level for the CIs. Default is 0.95 (95% CIs).')
+    CIGroup.add_option('-albi_o', '--albi_output_filename', dest='albi_output',
+                       help='File to which to write the calculated CIs. If not supplied, CIs will be printed.')
+
+    parser.add_option_group(eigenGroup)
+    parser.add_option_group(gencovGroup)
+    parser.add_option_group(CIGroup)
+
+    options, args = parser.parse_args()
+    return options, args
 
 def GWAS_parser():
     usage = """usage: %prog [options] --kfile kinshipFile --[tfile | bfile] plinkFileBase outfileBase

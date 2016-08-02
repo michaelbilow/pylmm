@@ -1,7 +1,7 @@
 from pylmm.input import plink
 from pylmm.lmm import LMM
 from os.path import join, split, splitext
-import pylmm.pylmmGWAS
+from scripts import pylmmGWAS
 from scipy import linalg
 import numpy as np
 import random
@@ -39,6 +39,13 @@ def gen_missing_phenos(phenolist):
     return newphenos
 '''
 
+def gen_missing_genos():
+    with open('snps.132k.clean.noX.ped', 'r') as f:
+        for line in f:
+            line_pairs = zip(line[::2], line[1::2])
+            samps = np.choice(line_pairs)
+            test = 'hi'
+    return
 
 
 def checkoutput():
@@ -57,8 +64,9 @@ def checkoutput():
 if __name__ == "__main__":
     more_args = ['-v',
                  '--kfile', '../data/snps.132k.clean.noX.pylmm.kin',
-                 '--bfile', '../data/snps.132k.clean.noX',
-                 '--phenofile', '../data/snps.132k.clean.noX_e.fake.phenos',
-                 'out_clean.noX_e.test']
+                 '--bfile', '../data/snps.132k.clean.noX.missing_genos',
+                 '--phenofile', '../data/snps.132k.clean.noX.fake.phenos',
+                 'out_clean.missing_genos.test']
     pylmmGWAS.main(more_args)
-    checkoutput()
+    #checkoutput()
+    #gen_missing_genos()
