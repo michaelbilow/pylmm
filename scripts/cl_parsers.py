@@ -1,5 +1,6 @@
 from optparse import OptionParser, OptionGroup
 import sys
+from albi.albi import AlbiArgumentParser
 from os.path import exists, isfile
 
 def kinship_parser():
@@ -40,6 +41,70 @@ def kinship_parser():
     # parser.add_option_group(advancedGroup)
     return parser
 
+def ALBI_parser():
+    usage = """usage: %prog [options] --albi_kinship_eigenvalues filename --albi_kinship_eigenvectors filename
+                --albi_covariates filename --albi_save_dist_filename filename
+    ALBI can be used to estimate the distributions of heritability and their confidence intervals and to save the results.
+    There are two cases in which ALBI distributions can be made:
+
+        1) All covariates are eigenvectors:
+        python albi.py --albi_kinship_eigenvalues filename
+                 [--albi_use_eigenvectors_as_covariates <list of #>]
+                 [--albi_precision <# of grid points>]
+                 [--albi_distribution_precision <# of grid points>]
+                 [--albi_samples <# of random samples>]
+                  --albi_save_dist_filename filename
+
+        2) General covariates
+        python albi.py --albi_kinship_eigenvalues filename
+                  --albi_kinship_eigenvectors filename
+                  --albi_covariates filename
+                 [--albi_precision <# of grid points>]
+                 [--albi_distribution_precision <# of grid points>]
+                 [--albi_samples <# of random samples>]
+                  --albi_save_dist_filename filename
+
+        To load ALBI estimated distributions and calculate their confidence intervals
+        python albi.py --albi_load_dist_filename filename
+                 (--albi_estimates_filename filename
+                    or
+                  --albi_estimate_grid <# of grid points>)
+                 [--albi_confidence <required confidence level>]
+                 [--albi_output_filename filename]
+                """
+    parser = AlbiArgumentParser(prog=os.path.basename(sys.argv[0]), usage=ALBI_USAGE)
+
+    group_load = parser.add_mutually_exclusive_group(required=True)
+    group_load.add_argument('--albi_load_dist_filename', type=str,
+                            help="Filename from which to load the estimated distributions.")
+    group_load.add_argument('--albi_kinship_eigenvalues', type=str,
+                            help="A file containing the eigenvalues of the kinship matrix, one eigenvalue per line, in text format.")
+    parser.add_argument('--albi_use_eigenvectors_as_covariates', type=str, default='-1',
+                        help="A comma-separated list detailing which eigenvectors should be used as covariates.")
+    parser.add_argument('--albi_kinship_eigenvectors', type=str,
+                        help="A file containing the eigenvectors of the kinship matrix, one eigenvector per column, in text format.")
+    parser.add_argument('--albi_covariates', type=str,
+                        help="A file containing the covariates, one covariate per column, in text format.")
+    parser.add_argument('--albi_precision', type=int, default=100,
+                        help="The number of grid points of the true heritability values, for which the estimator distributions are estimated. Effectively, this is the precision at which the CIs will be given (e.g., 100 grid points = 0.01 precision).")
+    parser.add_argument('--albi_distribution_precision', type=int, default=100,
+                        help="The number of grid points at which each estimator distribution is estimated. This controls the accuracy of estimation.")
+    parser.add_argument('--albi_samples', type=int, default=1000,
+                        help="Number of random bootstrap samples to use for estimation.")
+    parser.add_argument('--albi_save_dist_filename', type=str,
+                        help="Filename to which to save the estimated distributions.")
+
+    group_estimates = parser.add_mutually_exclusive_group(required=False)
+    group_estimates.add_argument('--albi_estimates_filename', type=str,
+                                 help="A filename containing a list of heritability estimates (one per line) in text format. A CI will be calculated for each one.")
+    group_estimates.add_argument('--albi_estimate_grid', type=int, default=10,
+                                 help="A grid of heritability estimates. A CI will be calculated for each one (e.g., a grid of 100, will calculate CIs for 0, 0.01, ..., 0.99, 1).")
+    parser.add_argument('--albi_confidence', type=float, default=0.95,
+                        help="The required confidence level for the CIs.")
+    parser.add_argument('--albi_output_filename', type=str, help="Filename to which to write the calculated CIs.")
+
+    options, args = parser.parse_args()
+    return options, args
 
 def GWAS_parser():
     usage = """usage: %prog [options] --kfile kinshipFile --[tfile | bfile] plinkFileBase outfileBase
